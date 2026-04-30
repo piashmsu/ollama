@@ -200,10 +200,18 @@ class DownloadManager(
             throw ce
         } catch (t: Throwable) {
             Log.w(TAG, "fail url=$url: ${t.message}")
-            flow.value = flow.value.copy(
-                state = DownloadStatus.State.Failed,
-                error = t.message ?: "download failed",
-            )
+            // If the user already pressed Cancel, cancel() set the state to
+            // Cancelled and then aborted the in-flight OkHttp call, which
+            // causes read()/write() in the loop above to throw IOException.
+            // That IOException is NOT a CancellationException, so it lands
+            // here — don't overwrite the user-visible Cancelled state with
+            // a misleading "Download failed".
+            if (flow.value.state != DownloadStatus.State.Cancelled) {
+                flow.value = flow.value.copy(
+                    state = DownloadStatus.State.Failed,
+                    error = t.message ?: "download failed",
+                )
+            }
         }
     }
 
