@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ForegroundInfo
@@ -14,7 +15,6 @@ import androidx.work.WorkerParameters
 import com.piashmsu.aichat.App
 import com.piashmsu.aichat.MainActivity
 import com.piashmsu.aichat.R
-import kotlinx.coroutines.flow.first
 import okhttp3.Request
 import java.io.File
 
@@ -34,6 +34,18 @@ class DownloadWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
 
+    /**
+     * Returned to WorkManager when this worker is run as expedited.
+     * WorkManager will own the foreground-service promotion if quota
+     * is available, otherwise the worker still runs as normal but without
+     * the sticky notification.
+     */
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        ensureChannel()
+        val displayName = inputData.getString(KEY_NAME) ?: "model"
+        return buildForegroundInfo(displayName, 0, 100)
+    }
+
     override suspend fun doWork(): Result {
         val url = inputData.getString(KEY_URL) ?: return Result.failure()
         val displayName = inputData.getString(KEY_NAME) ?: url.substringAfterLast('/')
@@ -46,7 +58,7 @@ class DownloadWorker(
         val resumeFrom = if (tmp.exists()) tmp.length() else 0L
 
         ensureChannel()
-        setForeground(buildForegroundInfo(displayName, 0, 100))
+        Log.i(TAG, "doWork start url=$url resumeFrom=$resumeFrom")
 
         try {
             val req = Request.Builder().url(url).apply {
@@ -60,13 +72,9 @@ class DownloadWorker(
                 val body = resp.body ?: return Result.retry()
                 val total = (body.contentLength().takeIf { it > 0 } ?: 0L) + resumeFrom
 
-                tmp.outputStream().use { sink ->
-                    if (resumeFrom > 0L) {
-                        // re-open in append mode is messy; simpler to channel
-                        // through RandomAccessFile but APIs differ. We accept
-                        // a slight inefficiency: when resuming, OkHttp gives
-                        // us 206 partial content, and we just append.
-                    }
+                // append=true so a Range-resumed download keeps existing
+                // bytes instead of truncating the .part file from byte 0.
+                java.io.FileOutputStream(tmp, resumeFrom > 0L).use { sink ->
                     body.byteStream().use { source ->
                         val buf = ByteArray(64 * 1024)
                         var read = resumeFrom
@@ -79,7 +87,7 @@ class DownloadWorker(
                             if (read - lastNotify > 1024 * 1024) {
                                 val pct = if (total > 0) ((read * 100) / total).toInt().coerceAtMost(100) else 0
                                 setProgress(workDataOf(KEY_BYTES to read, KEY_TOTAL to total, KEY_PCT to pct))
-                                setForeground(buildForegroundInfo(displayName, pct, 100))
+                                postProgressNotification(displayName, pct)
                                 lastNotify = read
                             }
                             if (isStopped) {
@@ -98,12 +106,36 @@ class DownloadWorker(
                     it.setActiveModel(out.absolutePath, displayName)
                 }
             }
+            clearProgressNotification()
+            Log.i(TAG, "doWork success $out")
             return Result.success(workDataOf(KEY_RESULT_PATH to out.absolutePath))
         } catch (t: Throwable) {
+            Log.w(TAG, "doWork error: ${t.message}")
+            clearProgressNotification()
             return if (runAttemptCount < 3) Result.retry()
             else Result.failure(workDataOf(KEY_ERROR to (t.message ?: "download failed")))
         }
     }
+
+    private fun postProgressNotification(name: String, pct: Int) {
+        val nm = applicationContext.getSystemService(NotificationManager::class.java) ?: return
+        val notif = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            .setContentTitle(applicationContext.getString(R.string.notif_download_title, name))
+            .setContentText("$pct%")
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setProgress(100, pct, false)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+        runCatching { nm.notify(notifId(), notif) }
+    }
+
+    private fun clearProgressNotification() {
+        val nm = applicationContext.getSystemService(NotificationManager::class.java) ?: return
+        runCatching { nm.cancel(notifId()) }
+    }
+
+    private fun notifId(): Int = NOTIF_BASE + (id.hashCode() and 0xFFFF)
 
     private fun ensureChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -138,17 +170,21 @@ class DownloadWorker(
             .setOnlyAlertOnce(true)
             .setContentIntent(pendingIntent)
             .build()
+        // Each download needs its own notification id so simultaneous
+        // downloads don't overwrite each other.
+        val nid = notifId()
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            ForegroundInfo(nid, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
-            ForegroundInfo(NOTIF_ID, notif)
+            ForegroundInfo(nid, notif)
         }
     }
 
     companion object {
+        const val TAG = "DownloadWorker"
         const val WORK_NAME_PREFIX = "model_download_"
         const val CHANNEL_ID = "downloads"
-        const val NOTIF_ID = 4242
+        const val NOTIF_BASE = 4242
         const val KEY_URL = "url"
         const val KEY_NAME = "name"
         const val KEY_MAKE_ACTIVE = "make_active"

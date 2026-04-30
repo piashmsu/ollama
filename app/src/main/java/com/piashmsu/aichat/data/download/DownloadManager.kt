@@ -7,6 +7,7 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import kotlinx.coroutines.flow.Flow
@@ -38,12 +39,18 @@ class DownloadManager(private val context: Context) {
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .setRequiresStorageNotLow(true)
                     .build()
             )
+            // Expedited so the worker starts immediately and can promote
+            // to a foreground service. If the foreground-job quota is
+            // exhausted, the OS will simply run it as a normal worker
+            // instead of blocking forever.
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .addTag(tag)
             .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(tag, ExistingWorkPolicy.KEEP, req)
+        // REPLACE so a stale ENQUEUED work from a previous app session can't
+        // hold the slot indefinitely.
+        WorkManager.getInstance(context).enqueueUniqueWork(tag, ExistingWorkPolicy.REPLACE, req)
         return tag
     }
 
