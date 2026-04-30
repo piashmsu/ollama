@@ -30,17 +30,21 @@ class DownloadService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureChannel(this)
-        startInForeground(this, displayName(intent), pct = 0)
-        // intent action == ACTION_UPDATE just refreshes the notification with
-        // new progress; ACTION_STOP shuts the service down.
-        when (intent?.action) {
+        // intent action == ACTION_STOP shuts the service down; everything else
+        // means "anchor the process while a download runs".
+        return when (intent?.action) {
             ACTION_STOP -> {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
+                // Don't let the OS resurrect us with a null intent — that
+                // would cause a phantom "Downloading model 0%" notification.
+                START_NOT_STICKY
             }
-            else -> { /* keep running */ }
+            else -> {
+                startInForeground(this, displayName(intent), pct = 0)
+                START_STICKY
+            }
         }
-        return START_STICKY
     }
 
     companion object {

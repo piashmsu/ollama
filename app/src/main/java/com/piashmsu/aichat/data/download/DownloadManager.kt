@@ -75,13 +75,12 @@ class DownloadManager(
         return url
     }
 
+    @Synchronized
     fun cancel(url: String) {
         jobs[url]?.cancel()
-        synchronized(this) {
-            statuses[url]?.value = statuses[url]?.value?.copy(
-                state = DownloadStatus.State.Cancelled,
-            ) ?: DownloadStatus(state = DownloadStatus.State.Cancelled)
-        }
+        statuses[url]?.value = statuses[url]?.value?.copy(
+            state = DownloadStatus.State.Cancelled,
+        ) ?: DownloadStatus(state = DownloadStatus.State.Cancelled)
     }
 
     private fun getOrCreate(url: String): MutableStateFlow<DownloadStatus> =
@@ -131,12 +130,23 @@ class DownloadManager(
                     )
                     return
                 }
-                val total = (body.contentLength().takeIf { it > 0 } ?: 0L) + resumeFrom
+                // If we asked for a Range but the server replied 200, it is
+                // ignoring the header and sending the FULL file from byte 0.
+                // Append-mode would then double-write the prefix and corrupt
+                // the model. Detect this and restart from scratch.
+                val serverHonoredRange = resp.code == 206
+                val effectiveResumeFrom = if (resumeFrom > 0L && !serverHonoredRange) {
+                    Log.i(TAG, "server ignored Range header — restarting from 0")
+                    0L
+                } else {
+                    resumeFrom
+                }
+                val total = (body.contentLength().takeIf { it > 0 } ?: 0L) + effectiveResumeFrom
 
-                FileOutputStream(tmp, resumeFrom > 0L).use { sink ->
+                FileOutputStream(tmp, /* append = */ effectiveResumeFrom > 0L).use { sink ->
                     body.byteStream().use { source ->
                         val buf = ByteArray(64 * 1024)
-                        var read = resumeFrom
+                        var read = effectiveResumeFrom
                         var lastEmit = 0L
                         while (true) {
                             val n = source.read(buf)
