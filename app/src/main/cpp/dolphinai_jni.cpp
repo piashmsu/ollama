@@ -299,6 +299,7 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeGenerate(
         ? std::chrono::milliseconds(static_cast<long>(1000.0 / rate_cap))
         : std::chrono::milliseconds(0);
 
+    auto gen_t0 = std::chrono::steady_clock::now();
     int emitted = 0;
     for (; emitted < max_tok; ++emitted) {
         if (s->cancel.load()) break;
@@ -308,8 +309,7 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeGenerate(
         char piece[256];
         int np = llama_token_to_piece(vocab, id, piece, sizeof(piece), 0, true);
         if (np > 0) {
-            std::string s2(piece, piece + np);
-            jstring jtok = env->NewStringUTF(s2.c_str());
+            jstring jtok = env->NewStringUTF(std::string(piece, piece + np).c_str());
             env->CallVoidMethod(callback, on_tok, jtok);
             env->DeleteLocalRef(jtok);
             if (env->ExceptionCheck()) { env->ExceptionClear(); break; }
@@ -321,6 +321,12 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeGenerate(
     }
 
     bool cancelled = s->cancel.load();
+    auto gen_t1 = std::chrono::steady_clock::now();
+    auto gen_ms = std::chrono::duration_cast<std::chrono::milliseconds>(gen_t1 - gen_t0).count();
+    if (gen_ms > 0) {
+        LOGI("nativeGenerate: %d tokens in %lld ms (%.1f tok/s) cancelled=%d",
+             emitted, (long long)gen_ms, (1000.0 * emitted) / gen_ms, cancelled ? 1 : 0);
+    }
     env->CallVoidMethod(callback, on_done, static_cast<jboolean>(cancelled));
     // sampler_guard frees the sampler chain on normal exit.
     } catch (const std::exception& e) {

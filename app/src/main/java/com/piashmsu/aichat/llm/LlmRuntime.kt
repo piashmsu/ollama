@@ -47,6 +47,16 @@ class LlmRuntime(
     private val _state = MutableStateFlow<RuntimeState>(RuntimeState.Idle)
     val state: StateFlow<RuntimeState> = _state.asStateFlow()
 
+    /**
+     * Lock that serialises every access to the native handle. Both the init
+     * block (preloading on prefs change) and the send path call into
+     * ensureLoaded from Dispatchers.IO. Without this lock a second loader
+     * could engine.close() the handle the first one just published, turning
+     * the next decode into a SIGSEGV that kicks the user back to the home
+     * screen.
+     */
+    private val lock = Any()
+
     @Volatile private var handle: Long = 0L
     @Volatile private var loadedPath: String? = null
 
@@ -54,28 +64,36 @@ class LlmRuntime(
 
     fun ensureLoaded(snapshot: PrefsSnapshot) {
         val path = snapshot.activeModelPath ?: return
-        if (path == loadedPath && handle != 0L) return
-        val name = snapshot.activeModelName ?: File(path).nameWithoutExtension
-        _state.value = RuntimeState.Loading(name)
-        try {
-            if (handle != 0L) engine.close(handle)
-            handle = engine.open(path, snapshot.contextSize, snapshot.threads)
-            loadedPath = path
-            _state.value = RuntimeState.Ready(name = name, path = path)
-        } catch (t: Throwable) {
-            _state.value = RuntimeState.Failed(t.message ?: "load error")
+        synchronized(lock) {
+            if (path == loadedPath && handle != 0L) return
+            val name = snapshot.activeModelName ?: File(path).nameWithoutExtension
+            _state.value = RuntimeState.Loading(name)
+            try {
+                if (handle != 0L) engine.close(handle)
+                handle = engine.open(path, snapshot.contextSize, snapshot.threads)
+                loadedPath = path
+                _state.value = RuntimeState.Ready(name = name, path = path)
+            } catch (t: Throwable) {
+                _state.value = RuntimeState.Failed(t.message ?: "load error")
+            }
         }
     }
 
     fun cancel() {
-        if (handle != 0L) engine.cancel(handle)
+        // No lock here — cancel is fire-and-forget and the engine itself is
+        // expected to be safe to call concurrently. Reading a stale handle
+        // is acceptable because the worst case is a no-op.
+        val h = handle
+        if (h != 0L) engine.cancel(h)
     }
 
     fun shutdown() {
-        if (handle != 0L) engine.close(handle)
-        handle = 0
-        loadedPath = null
-        _state.value = RuntimeState.Idle
+        synchronized(lock) {
+            if (handle != 0L) engine.close(handle)
+            handle = 0
+            loadedPath = null
+            _state.value = RuntimeState.Idle
+        }
     }
 
     /** Build a chat prompt from history + new user turn using a generic ChatML-ish format. */
@@ -101,8 +119,14 @@ class LlmRuntime(
         history: List<MessageEntity>,
         userMessage: String,
     ): Flow<String> {
-        ensureLoaded(snapshot)
-        val h = handle
+        // Hold the lock across ensureLoaded + handle capture so the handle we
+        // hand to the engine cannot be closed/replaced by a concurrent loader
+        // between these two lines.
+        val h: Long
+        synchronized(lock) {
+            ensureLoaded(snapshot)
+            h = handle
+        }
         if (h == 0L) {
             return kotlinx.coroutines.flow.flow {
                 throw IllegalStateException("No model loaded")

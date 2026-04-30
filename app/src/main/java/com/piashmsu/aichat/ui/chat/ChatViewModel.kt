@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -39,7 +40,10 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
     init {
         viewModelScope.launch {
             container.prefs.flow.collectLatest { snap ->
-                _state.value = _state.value.copy(modelName = snap.activeModelName)
+                // Use atomic update because the streaming loop below also
+                // mutates _state from Dispatchers.IO — a non-atomic
+                // read/copy/write would race and lose updates.
+                _state.update { it.copy(modelName = snap.activeModelName) }
                 // Loading a multi-GB GGUF blocks for several seconds. Move it
                 // off the UI dispatcher so we don't trigger an ANR (which on
                 // RedMagic / Android 13+ kicks the user back to the home
@@ -54,10 +58,12 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
             // listener in Phase 4.
             while (true) {
                 val snap = container.thermalGuard.snapshot()
-                _state.value = _state.value.copy(
-                    thermalPaused = snap.paused,
-                    thermalTempC = snap.temperatureC,
-                )
+                _state.update {
+                    it.copy(
+                        thermalPaused = snap.paused,
+                        thermalTempC = snap.temperatureC,
+                    )
+                }
                 kotlinx.coroutines.delay(5_000)
             }
         }
@@ -66,16 +72,21 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
     fun openConversation(id: Long) {
         viewModelScope.launch {
             val conv = container.db.conversationDao().get(id) ?: return@launch
-            _state.value = _state.value.copy(conversationId = conv.id, title = conv.title)
+            _state.update { it.copy(conversationId = conv.id, title = conv.title) }
             container.db.messageDao().observe(conv.id).collectLatest { msgs ->
-                _state.value = _state.value.copy(messages = msgs)
+                _state.update { it.copy(messages = msgs) }
             }
         }
     }
 
     fun startNew() {
         streamJob?.cancel()
-        _state.value = ChatUiState(backend = container.llmRuntime.backend, modelName = _state.value.modelName)
+        _state.update {
+            ChatUiState(
+                backend = container.llmRuntime.backend,
+                modelName = it.modelName,
+            )
+        }
     }
 
     fun stop() {
@@ -87,7 +98,7 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
         val trimmed = text.trim()
         if (trimmed.isEmpty() || _state.value.isStreaming) return
         if (_state.value.thermalPaused) {
-            _state.value = _state.value.copy(error = "Phone is hot — generation paused")
+            _state.update { it.copy(error = "Phone is hot — generation paused") }
             return
         }
         streamJob = viewModelScope.launch {
@@ -97,13 +108,33 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
                 val userMsg = MessageEntity(conversationId = cid, role = Role.User, content = trimmed)
                 container.db.messageDao().insert(userMsg)
                 val history = container.db.messageDao().list(cid)
-                _state.value = _state.value.copy(streamingText = "", isStreaming = true, error = null)
+                _state.update { it.copy(streamingText = "", isStreaming = true, error = null) }
 
                 val sb = StringBuilder()
+                // Throttle UI updates: accumulate tokens for ~70 ms before
+                // pushing a fresh streamingText to the StateFlow. Without
+                // this, every token (200+ per reply) triggers a full Compose
+                // recomposition + markdown re-parse + syntax-highlight pass,
+                // which freezes the main thread on long replies and the OS
+                // ANR-kills the app back to the home screen.
+                var lastEmit = 0L
                 withContext(Dispatchers.IO) {
                     container.llmRuntime.generate(prefs, history.dropLast(1), trimmed).collect { chunk ->
                         sb.append(chunk)
-                        _state.value = _state.value.copy(streamingText = sb.toString())
+                        val now = android.os.SystemClock.uptimeMillis()
+                        if (now - lastEmit >= 70L) {
+                            lastEmit = now
+                            // _state.update is the atomic read-modify-write
+                            // that prevents the IO streaming and Main
+                            // thermal-poll coroutines from clobbering each
+                            // other.
+                            _state.update { it.copy(streamingText = sb.toString()) }
+                        }
+                    }
+                    // Final flush so the user always sees the complete reply
+                    // even if the last batch was within the throttle window.
+                    if (sb.isNotEmpty()) {
+                        _state.update { it.copy(streamingText = sb.toString()) }
                     }
                 }
                 if (sb.isNotEmpty()) {
@@ -112,9 +143,9 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
                     )
                 }
             } catch (t: Throwable) {
-                _state.value = _state.value.copy(error = t.message ?: "Generation failed")
+                _state.update { it.copy(error = t.message ?: "Generation failed") }
             } finally {
-                _state.value = _state.value.copy(streamingText = "", isStreaming = false)
+                _state.update { it.copy(streamingText = "", isStreaming = false) }
             }
         }
     }
@@ -130,7 +161,7 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
                 systemPrompt = prefs.systemPrompt,
             )
         )
-        _state.value = _state.value.copy(conversationId = newId, title = title)
+        _state.update { it.copy(conversationId = newId, title = title) }
         return newId
     }
 }
