@@ -36,6 +36,7 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     private var streamJob: Job? = null
+    private var observeJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -73,7 +74,19 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val conv = container.db.conversationDao().get(id) ?: return@launch
             _state.update { it.copy(conversationId = conv.id, title = conv.title) }
-            container.db.messageDao().observe(conv.id).collectLatest { msgs ->
+            startObservingMessages(conv.id)
+        }
+    }
+
+    /**
+     * Subscribe to the messages flow for [cid] and mirror it into ui state.
+     * We cancel any previous observer first so a brand-new conversation
+     * does not keep showing the old conversation's history.
+     */
+    private fun startObservingMessages(cid: Long) {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
+            container.db.messageDao().observe(cid).collectLatest { msgs ->
                 _state.update { it.copy(messages = msgs) }
             }
         }
@@ -81,6 +94,7 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
 
     fun startNew() {
         streamJob?.cancel()
+        observeJob?.cancel()
         _state.update {
             ChatUiState(
                 backend = container.llmRuntime.backend,
@@ -162,6 +176,11 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
             )
         )
         _state.update { it.copy(conversationId = newId, title = title) }
+        // Crucial: subscribe to the messages flow for the freshly-created
+        // conversation. Without this the user message and assistant reply
+        // are saved to the DB but never re-emitted into the UI, so the
+        // chat "disappears" once streamingText is cleared in finally.
+        startObservingMessages(newId)
         return newId
     }
 }

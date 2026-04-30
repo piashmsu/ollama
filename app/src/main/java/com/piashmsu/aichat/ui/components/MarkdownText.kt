@@ -229,7 +229,13 @@ private fun parseMarkdownBlocks(input: String): List<MdBlock> {
                     sb.appendLine(lines[i]); i++
                 }
                 i++ // skip closing fence
-                out += MdBlock.Code(language = lang, code = sb.toString().trimEnd())
+                val code = sb.toString().trimEnd()
+                // Skip empty fenced blocks — Phi-3 and friends sometimes
+                // emit a stray ``` plaintext / ``` pair around plain text.
+                // Rendering them as an empty box looks like a bug.
+                if (code.isNotEmpty()) {
+                    out += MdBlock.Code(language = lang, code = code)
+                }
             }
             trimmed.startsWith("#") -> {
                 val level = trimmed.takeWhile { it == '#' }.length.coerceAtMost(6)
