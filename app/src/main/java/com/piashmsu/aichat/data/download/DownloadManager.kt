@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -48,6 +49,7 @@ class DownloadManager(
 ) {
     private val statuses: MutableMap<String, MutableStateFlow<DownloadStatus>> = mutableMapOf()
     private val jobs: MutableMap<String, Job> = mutableMapOf()
+    private val calls: MutableMap<String, Call> = mutableMapOf()
     private val activeNames: MutableMap<String, String> = mutableMapOf()
 
     @Synchronized
@@ -77,6 +79,11 @@ class DownloadManager(
 
     @Synchronized
     fun cancel(url: String) {
+        // Cancel the in-flight HTTP call so the blocking read()/write() in
+        // runDownload throws IOException immediately. Coroutine cancellation
+        // alone won't interrupt those blocking I/O calls — they have no
+        // suspension points inside the tight 64 KB loop.
+        calls[url]?.cancel()
         jobs[url]?.cancel()
         statuses[url]?.value = statuses[url]?.value?.copy(
             state = DownloadStatus.State.Cancelled,
@@ -89,10 +96,16 @@ class DownloadManager(
     @Synchronized
     private fun onJobFinished(url: String) {
         jobs.remove(url)
+        calls.remove(url)
         activeNames.remove(url)
         if (jobs.isEmpty()) {
             DownloadService.stop(context)
         }
+    }
+
+    @Synchronized
+    private fun rememberCall(url: String, call: Call) {
+        calls[url] = call
     }
 
     private suspend fun runDownload(
@@ -116,7 +129,9 @@ class DownloadManager(
                 if (resumeFrom > 0L) addHeader("Range", "bytes=$resumeFrom-")
             }.build()
 
-            httpClient.newCall(req).execute().use { resp ->
+            val call = httpClient.newCall(req)
+            rememberCall(url, call)
+            call.execute().use { resp ->
                 if (!resp.isSuccessful && resp.code != 206) {
                     flow.value = flow.value.copy(
                         state = DownloadStatus.State.Failed,
