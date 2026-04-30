@@ -32,17 +32,27 @@ class DownloadService : Service() {
         ensureChannel(this)
         // intent action == ACTION_STOP shuts the service down; everything else
         // means "anchor the process while a download runs".
-        return when (intent?.action) {
-            ACTION_STOP -> {
+        return when {
+            intent?.action == ACTION_STOP -> {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
-                // Don't let the OS resurrect us with a null intent — that
-                // would cause a phantom "Downloading model 0%" notification.
+                START_NOT_STICKY
+            }
+            intent == null -> {
+                // OS restarted us with a null intent after process kill. The
+                // DownloadManager state has been wiped — there is no real
+                // download to anchor. Stop immediately to avoid a phantom
+                // "Downloading model 0%" notification.
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
                 START_NOT_STICKY
             }
             else -> {
                 startInForeground(this, displayName(intent), pct = 0)
-                START_STICKY
+                // Use START_NOT_STICKY: if the OS kills us, we don't want it
+                // to silently resurrect with a null intent (no download).
+                // The user re-tapping Download will start us again cleanly.
+                START_NOT_STICKY
             }
         }
     }

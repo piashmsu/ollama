@@ -149,6 +149,7 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeOpen(
         s->n_threads = nThreads > 0 ? nThreads : 4;
         LOGI("nativeOpen path=%s n_ctx=%d n_threads=%d",
              s->model_path.c_str(), s->n_ctx, s->n_threads);
+        auto t0 = std::chrono::steady_clock::now();
 
         if (s->model_path.empty()) {
             LOGE("nativeOpen: empty model path");
@@ -185,6 +186,9 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeOpen(
         }
 #endif
 
+        auto t1 = std::chrono::steady_clock::now();
+        LOGI("nativeOpen: model+context ready in %lld ms",
+             (long long)std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
         std::lock_guard<std::mutex> lk(g_sessions_mu);
         g_sessions.push_back(std::move(s));
         return static_cast<jlong>(g_sessions.size());
@@ -279,7 +283,11 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeGenerate(
     }
 
     auto sparams = llama_sampler_chain_default_params();
-    llama_sampler* sampler = llama_sampler_chain_init(sparams);
+    // RAII-managed sampler so it is freed on every exit path — normal,
+    // EOG, cancellation, or thrown C++ exception (OOM during decode).
+    std::unique_ptr<llama_sampler, decltype(&llama_sampler_free)> sampler_guard(
+        llama_sampler_chain_init(sparams), &llama_sampler_free);
+    llama_sampler* sampler = sampler_guard.get();
     llama_sampler_chain_add(sampler, llama_sampler_init_top_k(topK > 0 ? topK : 40));
     llama_sampler_chain_add(sampler, llama_sampler_init_top_p(topP > 0 ? topP : 0.9f, 1));
     llama_sampler_chain_add(sampler, llama_sampler_init_temp(temperature > 0 ? temperature : 0.7f));
@@ -312,9 +320,9 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeGenerate(
         if (interval.count() > 0) std::this_thread::sleep_for(interval);
     }
 
-    llama_sampler_free(sampler);
     bool cancelled = s->cancel.load();
     env->CallVoidMethod(callback, on_done, static_cast<jboolean>(cancelled));
+    // sampler_guard frees the sampler chain on normal exit.
     } catch (const std::exception& e) {
         LOGE("nativeGenerate exception: %s", e.what());
         env->CallVoidMethod(callback, on_done, JNI_TRUE);
