@@ -59,4 +59,26 @@
     <string name="memory_title">দীর্ঘমেয়াদী স্মৃতি</string>
     <string name="avatar_title">অবতার</string>
     <string name="avatar_robot_girl">রোবট AI মেয়ে</string>
+
+    <string name="notif_channel_downloads">মডেল ডাউনলোড</string>
+    <string name="notif_channel_downloads_summary">ব্যাকগ্রাউন্ডে চলমান ডাউনলোডের অগ্রগতি</string>
+    <string name="notif_download_title">%1$s ডাউনলোড হচ্ছে</string>
+
+    <string name="suggest_explain">কোনো বিষয় বুঝিয়ে দাও</string>
+    <string name="suggest_code">কোড লিখে দাও</string>
+    <string name="suggest_summarize">সারাংশ করো</string>
+    <string name="suggest_translate">অনুবাদ করো</string>
+    <string name="suggest_brainstorm">আইডিয়া দাও</string>
+    <string name="suggest_explain_text">কোয়ান্টাম এনট্যাঙ্গলমেন্ট আমাকে এমনভাবে বুঝাও যেন আমি ১২ বছরের কৌতূহলী একজন।</string>
+    <string name="suggest_code_text">এমন একটি Kotlin coroutine লেখো যেটা exponential backoff সহ HTTP কল রিট্রাই করে।</string>
+    <string name="suggest_summarize_text">\"Atomic Habits\" বইয়ের মূল ৫টা আইডিয়া বুলেট পয়েন্টে দাও।</string>
+    <string name="suggest_translate_text">এই অনুচ্ছেদটি স্বাভাবিক ইংরেজিতে অনুবাদ করো:\n\n</string>
+    <string name="suggest_brainstorm_text">একজন সলো Android ডেভেলপার এক সপ্তাহান্তে শিপ করতে পারে এমন ১০টি সাইড প্রজেক্ট আইডিয়া দাও।</string>
+
+    <string name="attach_image">ছবি যোগ করুন</string>
+    <string name="attach_image_phase2_note">ইমেজ ইনপুট Phase-2 ভিশন আপডেটে যুক্ত হবে।</string>
+
+    <string name="download_resume_supported">ব্যাকগ্রাউন্ড-নিরাপদ — স্ক্রিন লক বা অ্যাপ সুইচ হলেও চলতে থাকবে।</string>
+    <string name="download_progress_format">%1$d%% · %2$s / %3$s</string>
+    <string name="download_failed_retry">ডাউনলোড ব্যর্থ। আবার চেষ্টা করতে ট্যাপ করুন।</string>
 </resources>

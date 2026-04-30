@@ -274,17 +274,50 @@ private fun parseMarkdownBlocks(input: String): List<MdBlock> {
 // Tiny syntax highlighter — keywords + strings + numbers + comments. Good
 // enough to look like ChatGPT/Gemini code boxes for popular languages.
 private val KEYWORDS = mapOf(
-    "kotlin" to setOf("fun", "val", "var", "return", "if", "else", "when", "class", "object", "interface", "import", "package", "for", "while", "do", "is", "as", "in", "true", "false", "null", "private", "public", "internal", "open", "override", "data", "suspend", "lateinit", "by", "this", "throw", "try", "catch", "finally"),
-    "python" to setOf("def", "class", "return", "if", "elif", "else", "for", "while", "import", "from", "as", "try", "except", "finally", "with", "lambda", "True", "False", "None", "self", "yield", "in", "not", "and", "or", "pass"),
-    "javascript" to setOf("function", "const", "let", "var", "return", "if", "else", "for", "while", "import", "export", "from", "as", "class", "extends", "new", "this", "true", "false", "null", "undefined", "try", "catch", "finally", "throw", "async", "await"),
-    "typescript" to setOf("function", "const", "let", "var", "return", "if", "else", "for", "while", "import", "export", "from", "as", "class", "extends", "new", "this", "true", "false", "null", "undefined", "interface", "type", "enum", "async", "await"),
-    "java" to setOf("public", "private", "protected", "class", "interface", "extends", "implements", "static", "final", "void", "if", "else", "for", "while", "return", "new", "this", "try", "catch", "finally", "throw", "throws", "true", "false", "null"),
-    "rust" to setOf("fn", "let", "mut", "const", "struct", "enum", "trait", "impl", "pub", "use", "mod", "if", "else", "match", "for", "while", "loop", "return", "self", "Self", "true", "false"),
-    "shell" to setOf("if", "then", "else", "fi", "for", "do", "done", "while", "case", "esac", "function", "return", "exit"),
+    "kotlin" to setOf("fun", "val", "var", "return", "if", "else", "when", "class", "object", "interface", "import", "package", "for", "while", "do", "is", "as", "in", "true", "false", "null", "private", "public", "internal", "open", "override", "data", "suspend", "lateinit", "by", "this", "throw", "try", "catch", "finally", "sealed", "abstract", "companion"),
+    "python" to setOf("def", "class", "return", "if", "elif", "else", "for", "while", "import", "from", "as", "try", "except", "finally", "with", "lambda", "True", "False", "None", "self", "yield", "in", "not", "and", "or", "pass", "raise", "global", "nonlocal", "async", "await"),
+    "javascript" to setOf("function", "const", "let", "var", "return", "if", "else", "for", "while", "import", "export", "from", "as", "class", "extends", "new", "this", "true", "false", "null", "undefined", "try", "catch", "finally", "throw", "async", "await", "of", "in", "typeof", "instanceof"),
+    "typescript" to setOf("function", "const", "let", "var", "return", "if", "else", "for", "while", "import", "export", "from", "as", "class", "extends", "new", "this", "true", "false", "null", "undefined", "interface", "type", "enum", "async", "await", "public", "private", "readonly", "implements"),
+    "tsx" to setOf("function", "const", "let", "var", "return", "if", "else", "for", "while", "import", "export", "from", "as", "class", "extends", "new", "this", "true", "false", "null", "undefined", "interface", "type", "enum", "async", "await", "public", "private", "readonly"),
+    "jsx" to setOf("function", "const", "let", "var", "return", "if", "else", "for", "while", "import", "export", "from", "as", "class", "extends", "new", "this", "true", "false", "null", "undefined"),
+    "java" to setOf("public", "private", "protected", "class", "interface", "extends", "implements", "static", "final", "void", "if", "else", "for", "while", "return", "new", "this", "try", "catch", "finally", "throw", "throws", "true", "false", "null", "package", "import", "abstract", "synchronized"),
+    "rust" to setOf("fn", "let", "mut", "const", "struct", "enum", "trait", "impl", "pub", "use", "mod", "if", "else", "match", "for", "while", "loop", "return", "self", "Self", "true", "false", "where", "ref", "as", "break", "continue", "async", "await"),
+    "go" to setOf("func", "var", "const", "type", "struct", "interface", "map", "chan", "package", "import", "if", "else", "for", "range", "switch", "case", "default", "return", "go", "select", "defer", "true", "false", "nil"),
+    "c" to setOf("int", "char", "float", "double", "void", "long", "short", "unsigned", "signed", "if", "else", "for", "while", "do", "switch", "case", "default", "return", "break", "continue", "struct", "union", "enum", "typedef", "static", "const", "extern", "sizeof"),
+    "cpp" to setOf("int", "char", "float", "double", "void", "long", "short", "bool", "auto", "if", "else", "for", "while", "do", "switch", "case", "default", "return", "break", "continue", "struct", "class", "namespace", "template", "typename", "public", "private", "protected", "virtual", "override", "const", "static", "new", "delete", "true", "false", "nullptr", "this", "using"),
+    "swift" to setOf("func", "let", "var", "if", "else", "for", "while", "switch", "case", "default", "return", "class", "struct", "enum", "protocol", "extension", "import", "guard", "in", "self", "Self", "true", "false", "nil", "throws", "throw", "try", "catch", "do", "is", "as"),
+    "php" to setOf("function", "class", "if", "else", "elseif", "for", "foreach", "while", "do", "return", "echo", "print", "true", "false", "null", "public", "private", "protected", "static", "const", "use", "namespace", "new", "this", "abstract", "interface", "extends", "implements"),
+    "ruby" to setOf("def", "end", "class", "module", "if", "elsif", "else", "unless", "while", "until", "for", "in", "do", "return", "yield", "true", "false", "nil", "self", "require", "include", "begin", "rescue", "ensure", "raise"),
+    "sql" to setOf("select", "from", "where", "and", "or", "not", "in", "like", "between", "is", "null", "insert", "into", "values", "update", "set", "delete", "create", "table", "drop", "alter", "add", "primary", "key", "foreign", "references", "join", "left", "right", "inner", "outer", "on", "group", "by", "having", "order", "asc", "desc", "limit", "offset", "as", "distinct", "count", "sum", "avg", "min", "max", "case", "when", "then", "else", "end"),
+    "json" to setOf("true", "false", "null"),
+    "yaml" to setOf("true", "false", "null", "yes", "no", "on", "off"),
+    "shell" to setOf("if", "then", "else", "fi", "for", "do", "done", "while", "case", "esac", "function", "return", "exit", "elif", "in", "until", "select", "trap"),
+    "bash" to setOf("if", "then", "else", "fi", "for", "do", "done", "while", "case", "esac", "function", "return", "exit", "elif", "in", "until", "select", "trap", "local", "export", "source"),
+    "html" to setOf(),
+    "css" to setOf(),
+    "xml" to setOf(),
+    "markdown" to setOf(),
 )
 
+// Common aliases: "js" → "javascript", "ts" → "typescript", etc.
+private val HASH_COMMENT_LANGS = setOf("python", "shell", "bash", "ruby", "yaml", "toml")
+
+private fun resolveLang(lang: String?): String = when (lang?.lowercase()) {
+    "kt", "kts" -> "kotlin"
+    "py", "py3" -> "python"
+    "js" -> "javascript"
+    "ts" -> "typescript"
+    "rs" -> "rust"
+    "rb" -> "ruby"
+    "yml" -> "yaml"
+    "sh", "zsh" -> "bash"
+    "c++", "cxx", "cc", "hpp", "h" -> "cpp"
+    null, "" -> ""
+    else -> lang.lowercase()
+}
+
 private fun highlightCode(language: String?, code: String): AnnotatedString {
-    val lang = language?.lowercase() ?: ""
+    val lang = resolveLang(language)
     val keys = KEYWORDS[lang] ?: emptySet()
     return buildAnnotatedString {
         var i = 0
@@ -296,7 +329,7 @@ private fun highlightCode(language: String?, code: String): AnnotatedString {
                 withStyle(SpanStyle(color = Color(0xFF6E7A99))) { append(code.substring(i, end)) }
                 i = end; continue
             }
-            if (c == '#' && (lang == "python" || lang == "shell")) {
+            if (c == '#' && lang in HASH_COMMENT_LANGS) {
                 val end = code.indexOf('\n', i).let { if (it == -1) code.length else it }
                 withStyle(SpanStyle(color = Color(0xFF6E7A99))) { append(code.substring(i, end)) }
                 i = end; continue

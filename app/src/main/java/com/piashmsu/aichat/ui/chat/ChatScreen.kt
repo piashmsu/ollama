@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.piashmsu.aichat.ui.chat
 
 import androidx.compose.foundation.background
@@ -75,7 +77,7 @@ fun ChatRoute(container: AppContainer, conversationId: Long? = null) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun ChatScreen(
     state: ChatUiState,
@@ -142,7 +144,7 @@ private fun ChatScreen(
                 )
             }
             if (state.messages.isEmpty() && state.streamingText.isEmpty()) {
-                EmptyChatHero()
+                EmptyChatHero(onSuggestion = { input = it; onSend(it) })
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().weight(1f),
@@ -285,39 +287,57 @@ private fun ChatInputBar(
 }
 
 @Composable
-private fun EmptyChatHero() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
+private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
+    val suggestions = listOf(
+        stringResource(R.string.suggest_explain) to stringResource(R.string.suggest_explain_text),
+        stringResource(R.string.suggest_code) to stringResource(R.string.suggest_code_text),
+        stringResource(R.string.suggest_summarize) to stringResource(R.string.suggest_summarize_text),
+        stringResource(R.string.suggest_translate) to stringResource(R.string.suggest_translate_text),
+        stringResource(R.string.suggest_brainstorm) to stringResource(R.string.suggest_brainstorm_text),
+    )
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.tertiary,
-                                MaterialTheme.colorScheme.secondary,
-                            )
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.tertiary,
+                            MaterialTheme.colorScheme.secondary,
                         )
-                    ),
-            )
-            Text(
-                stringResource(R.string.app_name),
-                style = MaterialTheme.typography.displayLarge,
-            )
-            Text(
-                stringResource(R.string.app_tagline),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+                    )
+                ),
+        )
+        androidx.compose.foundation.layout.Spacer(Modifier.size(16.dp))
+        Text(
+            stringResource(R.string.app_name),
+            style = MaterialTheme.typography.displayLarge,
+        )
+        Text(
+            stringResource(R.string.app_tagline),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        androidx.compose.foundation.layout.Spacer(Modifier.size(28.dp))
+        androidx.compose.foundation.layout.FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            suggestions.forEach { (label, prompt) ->
+                androidx.compose.material3.SuggestionChip(
+                    onClick = { onSuggestion(prompt) },
+                    label = { Text(label) },
+                    shape = RoundedCornerShape(50),
+                )
+            }
         }
     }
 }

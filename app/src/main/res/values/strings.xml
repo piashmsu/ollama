@@ -125,4 +125,30 @@
     <string name="avatar_title">Avatar</string>
     <string name="avatar_none">None</string>
     <string name="avatar_robot_girl">Robot AI girl</string>
+
+    <!-- Notifications -->
+    <string name="notif_channel_downloads">Model downloads</string>
+    <string name="notif_channel_downloads_summary">Progress for models being downloaded in the background</string>
+    <string name="notif_download_title">Downloading %1$s</string>
+
+    <!-- Gemini-style starter chips -->
+    <string name="suggest_explain">Explain a concept</string>
+    <string name="suggest_code">Write me some code</string>
+    <string name="suggest_summarize">Summarize this</string>
+    <string name="suggest_translate">Translate to Bangla</string>
+    <string name="suggest_brainstorm">Brainstorm ideas</string>
+    <string name="suggest_explain_text">Explain quantum entanglement to me like I\'m a curious 12 year old.</string>
+    <string name="suggest_code_text">Write a Kotlin coroutine that retries an HTTP call with exponential backoff.</string>
+    <string name="suggest_summarize_text">Summarize the key ideas of \"Atomic Habits\" in 5 bullet points.</string>
+    <string name="suggest_translate_text">Translate this paragraph into natural Bangla:\n\n</string>
+    <string name="suggest_brainstorm_text">Give me 10 unique side-project ideas a solo Android dev could ship in a weekend.</string>
+
+    <!-- Attachments -->
+    <string name="attach_image">Attach image</string>
+    <string name="attach_image_phase2_note">Image input lands with the Phase-2 vision update.</string>
+
+    <!-- Download UI -->
+    <string name="download_resume_supported">Background-safe — survives screen lock and app switch.</string>
+    <string name="download_progress_format">%1$d%% · %2$s of %3$s</string>
+    <string name="download_failed_retry">Download failed. Tap to retry.</string>
 </resources>

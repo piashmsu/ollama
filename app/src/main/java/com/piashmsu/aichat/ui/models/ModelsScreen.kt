@@ -12,8 +12,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,7 +33,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.piashmsu.aichat.R
 import com.piashmsu.aichat.data.AppContainer
 import com.piashmsu.aichat.data.download.CuratedModel
+import com.piashmsu.aichat.data.download.DownloadStatus
 import com.piashmsu.aichat.data.download.ModelCatalog
 import kotlinx.coroutines.launch
 import java.io.File
@@ -52,7 +54,6 @@ import java.io.File
 fun ModelsRoute(container: AppContainer) {
     val prefs by container.prefs.flow.collectAsState(initial = container.prefs.snapshot())
     val scope = rememberCoroutineScope()
-    val progress = remember { mutableStateMapOf<String, Float>() }
     var local by remember { mutableStateOf(container.downloader.listLocalModels()) }
     var customUrl by remember { mutableStateOf("") }
 
@@ -73,36 +74,24 @@ fun ModelsRoute(container: AppContainer) {
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item { SectionTitle(stringResource(R.string.models_curated)) }
             item {
-                SectionTitle(stringResource(R.string.models_curated))
+                Text(
+                    text = stringResource(R.string.download_resume_supported),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             items(ModelCatalog.curated, key = { it.id }) { m ->
                 CuratedRow(
+                    container = container,
                     model = m,
                     isActive = prefs.activeModelPath?.endsWith(m.url.substringAfterLast('/')) == true,
-                    progress = progress[m.id],
                     onDownload = {
-                        scope.launch {
-                            container.downloader.download(m.url).collect { p ->
-                                if (p.error != null) {
-                                    progress.remove(m.id)
-                                    return@collect
-                                }
-                                if (p.totalBytes > 0) {
-                                    progress[m.id] = p.bytesRead.toFloat() / p.totalBytes
-                                }
-                                if (p.done) {
-                                    progress.remove(m.id)
-                                    refreshLocal()
-                                    p.outFile?.let { f ->
-                                        container.prefs.update {
-                                            it.setActiveModel(f.absolutePath, m.displayName)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        container.downloads.enqueue(m.url, m.displayName, makeActive = true)
                     },
+                    onCancel = { container.downloads.cancel(m.url) },
+                    onCompleted = { refreshLocal() },
                 )
             }
 
@@ -123,20 +112,8 @@ fun ModelsRoute(container: AppContainer) {
                     Button(onClick = {
                         val url = customUrl.trim()
                         if (url.isNotEmpty()) {
-                            scope.launch {
-                                container.downloader.download(url).collect { p ->
-                                    if (p.totalBytes > 0) progress[url] = p.bytesRead.toFloat() / p.totalBytes
-                                    if (p.done) {
-                                        progress.remove(url)
-                                        refreshLocal()
-                                        p.outFile?.let { f ->
-                                            container.prefs.update { u ->
-                                                u.setActiveModel(f.absolutePath, f.nameWithoutExtension)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            val name = url.substringAfterLast('/').substringBeforeLast('.')
+                            container.downloads.enqueue(url, name.ifBlank { "model" }, makeActive = true)
                             customUrl = ""
                         }
                     }) { Text(stringResource(R.string.models_download)) }
@@ -191,11 +168,20 @@ private fun SectionTitle(text: String) {
 
 @Composable
 private fun CuratedRow(
+    container: AppContainer,
     model: CuratedModel,
     isActive: Boolean,
-    progress: Float?,
     onDownload: () -> Unit,
+    onCancel: () -> Unit,
+    onCompleted: () -> Unit,
 ) {
+    val status by remember(model.url) { container.downloads.status(model.url) }
+        .collectAsState(initial = DownloadStatus())
+
+    LaunchedEffect(status.state) {
+        if (status.state == DownloadStatus.State.Succeeded) onCompleted()
+    }
+
     Card(
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
@@ -211,10 +197,9 @@ private fun CuratedRow(
                     modifier = Modifier.weight(1f),
                 )
                 if (model.recommended) {
-                    Text(
-                        text = "★",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.tertiary,
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("★", color = MaterialTheme.colorScheme.tertiary) },
                     )
                 }
             }
@@ -223,28 +208,55 @@ private fun CuratedRow(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (progress != null) {
-                LinearProgressIndicator(
-                    progress = { progress.coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                )
-                Text(
-                    text = "${(progress * 100).toInt()}%",
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            } else if (isActive) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary)
-                    Text(
-                        stringResource(R.string.models_active),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelLarge,
+            when {
+                status.state == DownloadStatus.State.Running ||
+                    status.state == DownloadStatus.State.Pending -> {
+                    LinearProgressIndicator(
+                        progress = { (status.pct / 100f).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                     )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (status.total > 0)
+                                "${status.pct}% · ${formatSize(status.bytes)} / ${formatSize(status.total)}"
+                            else if (status.state == DownloadStatus.State.Pending)
+                                "Queued…"
+                            else "${status.pct}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = onCancel) {
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.models_cancel_download))
+                        }
+                    }
                 }
-            } else {
-                Button(onClick = onDownload, modifier = Modifier.padding(top = 6.dp)) {
-                    Icon(Icons.Filled.CloudDownload, null)
-                    Text("  ${stringResource(R.string.models_download)}")
+                isActive -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary)
+                        Text(
+                            stringResource(R.string.models_active),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
+                status.state == DownloadStatus.State.Failed -> {
+                    Text(
+                        text = status.error ?: stringResource(R.string.download_failed_retry),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    Button(onClick = onDownload, modifier = Modifier.padding(top = 6.dp)) {
+                        Icon(Icons.Filled.CloudDownload, null)
+                        Text("  ${stringResource(R.string.models_download)}")
+                    }
+                }
+                else -> {
+                    Button(onClick = onDownload, modifier = Modifier.padding(top = 6.dp)) {
+                        Icon(Icons.Filled.CloudDownload, null)
+                        Text("  ${stringResource(R.string.models_download)}")
+                    }
                 }
             }
         }
@@ -284,4 +296,10 @@ private fun LocalRow(
             }
         }
     }
+}
+
+private fun formatSize(bytes: Long): String {
+    if (bytes <= 0) return "0 MB"
+    val mb = bytes / (1024.0 * 1024.0)
+    return if (mb >= 1024) "%.2f GB".format(mb / 1024.0) else "%.0f MB".format(mb)
 }

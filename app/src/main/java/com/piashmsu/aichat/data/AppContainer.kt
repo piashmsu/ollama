@@ -6,6 +6,7 @@ import com.piashmsu.aichat.agent.AgentRuntime
 import com.piashmsu.aichat.agent.tools.CalculatorTool
 import com.piashmsu.aichat.agent.tools.ClipboardTool
 import com.piashmsu.aichat.data.db.AppDatabase
+import com.piashmsu.aichat.data.download.DownloadManager
 import com.piashmsu.aichat.data.download.ModelDownloader
 import com.piashmsu.aichat.data.prefs.AppPrefs
 import com.piashmsu.aichat.llm.LlamaCppEngine
@@ -21,6 +22,7 @@ interface AppContainer {
     val db: AppDatabase
     val httpClient: OkHttpClient
     val downloader: ModelDownloader
+    val downloads: DownloadManager
     val llmRuntime: LlmRuntime
     val memory: MemoryStore
     val thermalGuard: ThermalGuard
@@ -48,6 +50,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val downloader: ModelDownloader by lazy {
         ModelDownloader(context, httpClient)
     }
+
+    override val downloads: DownloadManager by lazy { DownloadManager(context) }
 
     override val llmRuntime: LlmRuntime by lazy {
         LlmRuntime(LlamaCppEngine(), prefs)
