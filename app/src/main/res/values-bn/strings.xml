@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ডলফিন AI</string>
+    <string name="app_tagline">আপনার পকেটে অফলাইন AI</string>
+
+    <string name="nav_chat">চ্যাট</string>
+    <string name="nav_history">ইতিহাস</string>
+    <string name="nav_models">মডেল</string>
+    <string name="nav_settings">সেটিংস</string>
+
+    <string name="chat_hint">ডলফিনকে লিখুন…</string>
+    <string name="chat_send">পাঠান</string>
+    <string name="chat_stop">থামান</string>
+    <string name="chat_copy">কপি</string>
+    <string name="chat_copied">কপি হয়েছে</string>
+    <string name="chat_regenerate">আবার তৈরি করুন</string>
+    <string name="chat_new">নতুন চ্যাট</string>
+    <string name="chat_thinking">ভাবছি…</string>
+    <string name="chat_no_model">কোনো মডেল লোড হয়নি। মডেল ট্যাব থেকে একটি নির্বাচন করুন।</string>
+    <string name="chat_role_user">আপনি</string>
+    <string name="chat_role_assistant">ডলফিন</string>
+
+    <string name="models_title">মডেল</string>
+    <string name="models_active">সক্রিয়</string>
+    <string name="models_download">ডাউনলোড</string>
+    <string name="models_downloading">ডাউনলোড হচ্ছে…</string>
+    <string name="models_delete">মুছুন</string>
+    <string name="models_use">ব্যবহার করুন</string>
+    <string name="models_loaded">লোড হয়েছে</string>
+    <string name="models_loading">মডেল লোড হচ্ছে…</string>
+    <string name="models_load_failed">মডেল লোড ব্যর্থ</string>
+    <string name="models_add_url">URL থেকে যোগ করুন</string>
+    <string name="models_curated">প্রস্তাবিত</string>
+    <string name="models_local">ডিভাইসে</string>
+    <string name="models_cancel_download">বাতিল</string>
+
+    <string name="settings_title">সেটিংস</string>
+    <string name="settings_section_inference">ইনফারেন্স</string>
+    <string name="settings_section_thermal">তাপ ও পাওয়ার</string>
+    <string name="settings_section_persona">পার্সোনা</string>
+    <string name="settings_section_appearance">চেহারা</string>
+    <string name="settings_section_advanced">উন্নত</string>
+    <string name="settings_section_about">সম্পর্কে</string>
+    <string name="settings_thermal_guard">তাপ রক্ষক</string>
+    <string name="settings_thermal_guard_summary">ফোন গরম হলে জেনারেশন থামাবে</string>
+    <string name="settings_battery_aware">ব্যাটারি-সচেতন মোড</string>
+    <string name="settings_dark_mode">ডার্ক মোড</string>
+    <string name="settings_language">ভাষা</string>
+
+    <string name="onb_welcome">ডলফিন AI-তে স্বাগতম</string>
+    <string name="onb_subtitle">শক্তিশালী, সম্পূর্ণ অফলাইন AI আপনার ফোনে</string>
+    <string name="onb_pick_model">একটি শুরু-মডেল বেছে নিন</string>
+    <string name="onb_continue">চালিয়ে যান</string>
+    <string name="onb_skip">এখন এড়িয়ে যান</string>
+
+    <string name="err_thermal_paused">থামানো হয়েছে: ফোন গরম। স্বয়ংক্রিয়ভাবে আবার শুরু হবে।</string>
+
+    <string name="agent_mode">এজেন্ট মোড</string>
+    <string name="memory_title">দীর্ঘমেয়াদী স্মৃতি</string>
+    <string name="avatar_title">অবতার</string>
+    <string name="avatar_robot_girl">রোবট AI মেয়ে</string>
+</resources>

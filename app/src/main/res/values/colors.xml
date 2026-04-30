@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_neon_cyan">#FF00E5FF</color>
+    <color name="brand_neon_magenta">#FFFF2D95</color>
+    <color name="brand_purple">#FF7C4DFF</color>
+    <color name="brand_dark_bg">#FF0B0E14</color>
+    <color name="brand_dark_surface">#FF11141C</color>
+    <color name="brand_dark_surface_elev">#FF1A1F2C</color>
+    <color name="brand_text_primary">#FFE6E9F2</color>
+    <color name="brand_text_secondary">#FF9AA3B8</color>
+</resources>

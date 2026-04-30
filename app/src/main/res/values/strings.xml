@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dolphin AI</string>
+    <string name="app_tagline">Offline AI in your pocket</string>
+
+    <!-- Navigation -->
+    <string name="nav_chat">Chat</string>
+    <string name="nav_history">History</string>
+    <string name="nav_models">Models</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Chat -->
+    <string name="chat_hint">Message Dolphin…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_stop">Stop</string>
+    <string name="chat_copy">Copy</string>
+    <string name="chat_copied">Copied to clipboard</string>
+    <string name="chat_regenerate">Regenerate</string>
+    <string name="chat_new">New chat</string>
+    <string name="chat_thinking">Thinking…</string>
+    <string name="chat_no_model">No model loaded. Pick one from the Models tab.</string>
+    <string name="chat_role_user">You</string>
+    <string name="chat_role_assistant">Dolphin</string>
+
+    <!-- Code blocks -->
+    <string name="code_lang_label">%1$s</string>
+
+    <!-- Models -->
+    <string name="models_title">Models</string>
+    <string name="models_active">Active</string>
+    <string name="models_download">Download</string>
+    <string name="models_downloading">Downloading…</string>
+    <string name="models_delete">Delete</string>
+    <string name="models_use">Use</string>
+    <string name="models_size">%1$s</string>
+    <string name="models_loaded">Loaded</string>
+    <string name="models_loading">Loading model…</string>
+    <string name="models_load_failed">Failed to load model</string>
+    <string name="models_add_url">Add from URL</string>
+    <string name="models_url_hint">https://huggingface.co/.../model.gguf</string>
+    <string name="models_curated">Recommended</string>
+    <string name="models_local">On device</string>
+    <string name="models_cancel_download">Cancel</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_inference">Inference</string>
+    <string name="settings_section_thermal">Thermal &amp; Power</string>
+    <string name="settings_section_persona">Persona</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_advanced">Advanced</string>
+    <string name="settings_section_about">About</string>
+
+    <string name="settings_temperature">Temperature</string>
+    <string name="settings_top_p">Top-p</string>
+    <string name="settings_top_k">Top-k</string>
+    <string name="settings_max_tokens">Max tokens</string>
+    <string name="settings_threads">CPU threads</string>
+    <string name="settings_context">Context size</string>
+    <string name="settings_system_prompt">System prompt</string>
+    <string name="settings_system_prompt_hint">You are Dolphin, a helpful AI assistant…</string>
+
+    <string name="settings_thermal_guard">Thermal guard</string>
+    <string name="settings_thermal_guard_summary">Pause generation when phone gets hot</string>
+    <string name="settings_thermal_pause_temp">Pause above (°C)</string>
+    <string name="settings_thermal_resume_temp">Resume below (°C)</string>
+    <string name="settings_token_rate_cap">Token-rate cap (tok/s, 0 = unlimited)</string>
+    <string name="settings_battery_aware">Battery-aware mode</string>
+    <string name="settings_battery_aware_summary">Use a smaller model when unplugged</string>
+
+    <string name="settings_dynamic_color">Dynamic color (Material You)</string>
+    <string name="settings_dark_mode">Dark mode</string>
+    <string name="settings_dark_mode_system">Follow system</string>
+    <string name="settings_dark_mode_dark">Always dark</string>
+    <string name="settings_dark_mode_light">Always light</string>
+    <string name="settings_language">Language</string>
+
+    <string name="settings_about_version">Version</string>
+    <string name="settings_about_repo">Source code</string>
+    <string name="settings_about_license">License</string>
+    <string name="settings_engine">Engine</string>
+    <string name="settings_engine_llamacpp">llama.cpp (recommended)</string>
+    <string name="settings_engine_ollama">Ollama daemon (advanced)</string>
+
+    <!-- History -->
+    <string name="history_title">History</string>
+    <string name="history_empty">No conversations yet</string>
+    <string name="history_delete">Delete</string>
+    <string name="history_rename">Rename</string>
+
+    <!-- Onboarding -->
+    <string name="onb_welcome">Welcome to Dolphin AI</string>
+    <string name="onb_subtitle">Powerful, fully offline AI on your phone</string>
+    <string name="onb_pick_model">Pick a starter model</string>
+    <string name="onb_continue">Continue</string>
+    <string name="onb_skip">Skip for now</string>
+
+    <!-- Errors -->
+    <string name="err_no_network">No internet connection</string>
+    <string name="err_download_failed">Download failed</string>
+    <string name="err_inference_failed">Generation failed</string>
+    <string name="err_thermal_paused">Paused: phone is hot. Will resume automatically.</string>
+
+    <!-- Permissions -->
+    <string name="perm_mic_rationale">Microphone access is needed for voice input</string>
+
+    <!-- Voice -->
+    <string name="voice_listening">Listening…</string>
+    <string name="voice_tap_to_speak">Tap to speak</string>
+
+    <!-- Agent -->
+    <string name="agent_mode">Agent mode</string>
+    <string name="agent_mode_summary">Allow the model to use tools</string>
+    <string name="agent_tool_calculator">Calculator</string>
+    <string name="agent_tool_web">Web search</string>
+    <string name="agent_tool_clipboard">Clipboard</string>
+
+    <!-- Memory -->
+    <string name="memory_title">Long-term memory</string>
+    <string name="memory_summary">Facts the assistant remembers across chats</string>
+    <string name="memory_empty">Nothing remembered yet</string>
+    <string name="memory_clear_all">Clear all memory</string>
+
+    <!-- Avatar -->
+    <string name="avatar_title">Avatar</string>
+    <string name="avatar_none">None</string>
+    <string name="avatar_robot_girl">Robot AI girl</string>
+</resources>
