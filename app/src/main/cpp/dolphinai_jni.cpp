@@ -142,46 +142,59 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeBackendInfo(JNIEnv* env, jclass) 
 JNIEXPORT jlong JNICALL
 Java_com_piashmsu_aichat_llm_LlamaNative_nativeOpen(
         JNIEnv* env, jclass, jstring jpath, jint nCtx, jint nThreads) {
-    auto s = std::make_unique<Session>();
-    s->model_path = jstr(env, jpath);
-    s->n_ctx = nCtx > 0 ? nCtx : 2048;
-    s->n_threads = nThreads > 0 ? nThreads : 4;
-    LOGI("nativeOpen path=%s n_ctx=%d n_threads=%d",
-         s->model_path.c_str(), s->n_ctx, s->n_threads);
+    try {
+        auto s = std::make_unique<Session>();
+        s->model_path = jstr(env, jpath);
+        s->n_ctx = nCtx > 0 ? nCtx : 2048;
+        s->n_threads = nThreads > 0 ? nThreads : 4;
+        LOGI("nativeOpen path=%s n_ctx=%d n_threads=%d",
+             s->model_path.c_str(), s->n_ctx, s->n_threads);
+
+        if (s->model_path.empty()) {
+            LOGE("nativeOpen: empty model path");
+            return 0;
+        }
 
 #ifdef DOLPHIN_USE_LLAMA_CPP
-    static std::once_flag backend_init_flag;
-    std::call_once(backend_init_flag, [] { llama_backend_init(); });
+        static std::once_flag backend_init_flag;
+        std::call_once(backend_init_flag, [] { llama_backend_init(); });
 
-    llama_model_params mparams = llama_model_default_params();
-    // GPU layer offload kept conservative on Android Adreno; CPU is the
-    // primary execution path. On RedMagic 7S Pro the active fan + 12 GB RAM
-    // handle CPU inference well.
-    mparams.n_gpu_layers = 0;
+        llama_model_params mparams = llama_model_default_params();
+        // GPU layer offload kept conservative on Android Adreno; CPU is the
+        // primary execution path. On RedMagic 7S Pro the active fan + 12 GB
+        // RAM handle CPU inference well.
+        mparams.n_gpu_layers = 0;
 
-    s->model = llama_model_load_from_file(s->model_path.c_str(), mparams);
-    if (!s->model) {
-        LOGE("llama_model_load_from_file failed for %s", s->model_path.c_str());
-        return 0;
-    }
+        s->model = llama_model_load_from_file(s->model_path.c_str(), mparams);
+        if (!s->model) {
+            LOGE("llama_model_load_from_file failed for %s", s->model_path.c_str());
+            return 0;
+        }
 
-    llama_context_params cparams = llama_context_default_params();
-    cparams.n_ctx = s->n_ctx;
-    cparams.n_threads = s->n_threads;
-    cparams.n_threads_batch = s->n_threads;
+        llama_context_params cparams = llama_context_default_params();
+        cparams.n_ctx = s->n_ctx;
+        cparams.n_threads = s->n_threads;
+        cparams.n_threads_batch = s->n_threads;
 
-    s->ctx = llama_init_from_model(s->model, cparams);
-    if (!s->ctx) {
-        LOGE("llama_init_from_model failed");
-        llama_model_free(s->model);
-        s->model = nullptr;
-        return 0;
-    }
+        s->ctx = llama_init_from_model(s->model, cparams);
+        if (!s->ctx) {
+            LOGE("llama_init_from_model failed");
+            llama_model_free(s->model);
+            s->model = nullptr;
+            return 0;
+        }
 #endif
 
-    std::lock_guard<std::mutex> lk(g_sessions_mu);
-    g_sessions.push_back(std::move(s));
-    return static_cast<jlong>(g_sessions.size());
+        std::lock_guard<std::mutex> lk(g_sessions_mu);
+        g_sessions.push_back(std::move(s));
+        return static_cast<jlong>(g_sessions.size());
+    } catch (const std::exception& e) {
+        LOGE("nativeOpen exception: %s", e.what());
+        return 0;
+    } catch (...) {
+        LOGE("nativeOpen unknown exception");
+        return 0;
+    }
 }
 
 JNIEXPORT void JNICALL
@@ -229,8 +242,14 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeGenerate(
     std::string prompt = jstr(env, jprompt);
 
 #ifdef DOLPHIN_USE_LLAMA_CPP
+    try {
     if (!s->ctx || !s->model) {
         LOGE("nativeGenerate: model not loaded");
+        env->CallVoidMethod(callback, on_done, JNI_TRUE);
+        return;
+    }
+    if (prompt.empty()) {
+        LOGE("nativeGenerate: empty prompt");
         env->CallVoidMethod(callback, on_done, JNI_TRUE);
         return;
     }
@@ -244,6 +263,11 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeGenerate(
         tokens.resize(-n);
         n = llama_tokenize(vocab, prompt.c_str(), prompt.size(),
                            tokens.data(), tokens.size(), true, true);
+    }
+    if (n <= 0) {
+        LOGE("llama_tokenize returned %d", n);
+        env->CallVoidMethod(callback, on_done, JNI_TRUE);
+        return;
     }
     tokens.resize(n);
 
@@ -291,6 +315,13 @@ Java_com_piashmsu_aichat_llm_LlamaNative_nativeGenerate(
     llama_sampler_free(sampler);
     bool cancelled = s->cancel.load();
     env->CallVoidMethod(callback, on_done, static_cast<jboolean>(cancelled));
+    } catch (const std::exception& e) {
+        LOGE("nativeGenerate exception: %s", e.what());
+        env->CallVoidMethod(callback, on_done, JNI_TRUE);
+    } catch (...) {
+        LOGE("nativeGenerate unknown exception");
+        env->CallVoidMethod(callback, on_done, JNI_TRUE);
+    }
 #else
     auto chunks = compose_stub_reply(prompt);
 

@@ -3,6 +3,8 @@
 package com.piashmsu.aichat.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -144,10 +146,17 @@ private fun ChatScreen(
                 )
             }
             if (state.messages.isEmpty() && state.streamingText.isEmpty()) {
-                EmptyChatHero(onSuggestion = { input = it; onSend(it) })
+                // weight(1f) so the input bar below stays visible —
+                // fillMaxSize() here was eating the whole column and pushing
+                // the send button off-screen.
+                EmptyChatHero(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    hasModel = state.modelName != null,
+                    onSuggestion = { input = it; onSend(it) },
+                )
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().weight(1f),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     state = listState,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         horizontal = 12.dp,
@@ -287,7 +296,11 @@ private fun ChatInputBar(
 }
 
 @Composable
-private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
+private fun EmptyChatHero(
+    modifier: Modifier = Modifier,
+    hasModel: Boolean,
+    onSuggestion: (String) -> Unit,
+) {
     val suggestions = listOf(
         stringResource(R.string.suggest_explain) to stringResource(R.string.suggest_explain_text),
         stringResource(R.string.suggest_code) to stringResource(R.string.suggest_code_text),
@@ -296,7 +309,9 @@ private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
         stringResource(R.string.suggest_brainstorm) to stringResource(R.string.suggest_brainstorm_text),
     )
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -325,6 +340,23 @@ private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        if (!hasModel) {
+            androidx.compose.foundation.layout.Spacer(Modifier.size(20.dp))
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                ),
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.chat_no_model_hint),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
         androidx.compose.foundation.layout.Spacer(Modifier.size(28.dp))
         androidx.compose.foundation.layout.FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -336,6 +368,7 @@ private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
                     onClick = { onSuggestion(prompt) },
                     label = { Text(label) },
                     shape = RoundedCornerShape(50),
+                    enabled = hasModel,
                 )
             }
         }

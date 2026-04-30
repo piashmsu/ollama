@@ -18,6 +18,7 @@
     <string name="chat_regenerate">Regenerate</string>
     <string name="chat_new">New chat</string>
     <string name="chat_thinking">Thinking…</string>
+    <string name="chat_no_model_hint">No model loaded yet — open the Models tab and download Phi-3 Mini (~2.4 GB) to start chatting.</string>
     <string name="chat_no_model">No model loaded. Pick one from the Models tab.</string>
     <string name="chat_role_user">You</string>
     <string name="chat_role_assistant">Dolphin</string>

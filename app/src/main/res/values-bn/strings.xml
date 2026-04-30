@@ -16,6 +16,7 @@
     <string name="chat_regenerate">আবার তৈরি করুন</string>
     <string name="chat_new">নতুন চ্যাট</string>
     <string name="chat_thinking">ভাবছি…</string>
+    <string name="chat_no_model_hint">এখনো কোনো মডেল লোড হয়নি — Models ট্যাব থেকে Phi-3 Mini (~২.৪ GB) ডাউনলোড করুন তারপর চ্যাট শুরু করুন।</string>
     <string name="chat_no_model">কোনো মডেল লোড হয়নি। মডেল ট্যাব থেকে একটি নির্বাচন করুন।</string>
     <string name="chat_role_user">আপনি</string>
     <string name="chat_role_assistant">ডলফিন</string>

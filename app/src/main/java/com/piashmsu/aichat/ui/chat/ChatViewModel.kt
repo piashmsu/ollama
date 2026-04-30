@@ -7,6 +7,7 @@ import com.piashmsu.aichat.data.db.ConversationEntity
 import com.piashmsu.aichat.data.db.MessageEntity
 import com.piashmsu.aichat.data.db.Role
 import com.piashmsu.aichat.data.prefs.PrefsSnapshot
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class ChatUiState(
     val conversationId: Long? = null,
@@ -38,7 +40,13 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             container.prefs.flow.collectLatest { snap ->
                 _state.value = _state.value.copy(modelName = snap.activeModelName)
-                container.llmRuntime.ensureLoaded(snap)
+                // Loading a multi-GB GGUF blocks for several seconds. Move it
+                // off the UI dispatcher so we don't trigger an ANR (which on
+                // RedMagic / Android 13+ kicks the user back to the home
+                // screen).
+                withContext(Dispatchers.IO) {
+                    container.llmRuntime.ensureLoaded(snap)
+                }
             }
         }
         viewModelScope.launch {
@@ -92,9 +100,11 @@ class ChatViewModel(private val container: AppContainer) : ViewModel() {
                 _state.value = _state.value.copy(streamingText = "", isStreaming = true, error = null)
 
                 val sb = StringBuilder()
-                container.llmRuntime.generate(prefs, history.dropLast(1), trimmed).collect { chunk ->
-                    sb.append(chunk)
-                    _state.value = _state.value.copy(streamingText = sb.toString())
+                withContext(Dispatchers.IO) {
+                    container.llmRuntime.generate(prefs, history.dropLast(1), trimmed).collect { chunk ->
+                        sb.append(chunk)
+                        _state.value = _state.value.copy(streamingText = sb.toString())
+                    }
                 }
                 if (sb.isNotEmpty()) {
                     container.db.messageDao().insert(
