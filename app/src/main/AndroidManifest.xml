@@ -27,6 +27,11 @@
         android:hardwareAccelerated="true"
         tools:targetApi="34">
 
+        <service
+            android:name=".data.download.DownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

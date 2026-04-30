@@ -51,7 +51,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         ModelDownloader(context, httpClient)
     }
 
-    override val downloads: DownloadManager by lazy { DownloadManager(context) }
+    override val downloads: DownloadManager by lazy {
+        DownloadManager(context, httpClient, downloader, prefs)
+    }
 
     override val llmRuntime: LlmRuntime by lazy {
         LlmRuntime(LlamaCppEngine(), prefs)
